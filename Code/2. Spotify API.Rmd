@@ -1,0 +1,78 @@
+---
+title: "2. Spotify API"
+author: "Jaejin Kim"
+date: "3/11/2019"
+output: pdf_document
+---
+
+**This code is to requests music features from the Spotify API for each of the songs registered in the Billboard Weekly Hot 100 data. It will take up to few hours to run the code, so run the code only if you want to go through the process. Otherwise, the data is available in the cleaned data folder as "Billboard_Spotify.csv"**
+
+```{r}
+#devtools::install_github("tiagomendesdantas/Rspotify") #Install to use the helper function that I created.
+suppressPackageStartupMessages(require(Rspotify))
+suppressPackageStartupMessages(require(dplyr))
+```
+
+Run the code below if you want to request music features from the Spotify API. If you do, input your own Spotify API client_id and client_secret after creating Spotify Developer app at https://developer.spotify.com/dashboard/login.
+```{r}
+keys <- Rspotify::spotifyOAuth(app_id = "EDP_Music_trend", client_id = 'id', client_secret = 'key')
+```
+
+# Initializing
+```{r}
+# Create a vector for Spotify music features
+features_name=c("id","danceability","energy","key","loudness","mode","speechiness",
+                "acousticness","instrumentalness","liveness","valence","tempo",
+                "duration_ms","time_signature","uri","analysis_url")
+
+# Initializing the features in the data
+billboard[,c("id","danceability","energy","key","loudness","mode","speechiness",
+         "acousticness","instrumentalness","liveness","valence","tempo",
+         "duration_ms","time_signature","uri","analysis_url")]=0
+```
+
+# Create and run a helper function to match billboard data to Spotify API
+```{r}
+
+get_spotify_features= function(track){
+  songs <- try(searchTrack(track, keys),silent = T)
+  if (class(songs)=="try-error"){
+    return(rep(0,length(features_name)))
+  }
+  else{
+  songs <- arrange(songs, desc(popularity))[1,]
+  song_id=songs[,"id"][1]
+  features=getFeatures(song_id, keys)
+  return(features)
+  }
+}
+```
+
+# Run the helper function to get the music features. This will take hours to run. Only run the below chunk if you are willing to go through the entire process.
+```{r}
+# for(i in 1:nrow(billboard)){
+#   billboard[i,11:26] <-  get_spotify_features(track = billboard$title[i])
+# }
+```
+
+# Update the data for the failed IDs
+```{r}
+failed_ids = which(billboard$id =="0")
+
+for(i in failed_ids){
+  billboard[i,17:32]=  get_spotify_features1(track = billboard$track[i],billboard$artist[i])
+  print(i)
+}
+```
+
+# Drop unnecessary features
+```{r}
+# I decided to use danceability, valence, energy, loudness and tempo as proxies for happiness of songs
+billboard <- subset(billboard, select = -c(key, mode, time_signature, acousticness, instrumentalness, liveness, duration_ms))
+billboard$time <- as.Date(billboard$WeekID, "%Y-%m-%d")
+```
+
+# Save dataset
+```{r}
+write.csv(billboard, "../Data/Clean/Billboard_Spotify.csv")
+```

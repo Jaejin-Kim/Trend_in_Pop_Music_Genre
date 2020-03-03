@@ -1,0 +1,453 @@
+---
+title: "Final presentation"
+author: "Jaejin Kim"
+date: "5/6/2019"
+output: pdf_document
+---
+
+# Research Question
+Is there a causal relation or correlation between the economic state of a country and the popularity of musics? Would it be possible to detect a latent factor, possible optimism, that affects both economic growth rate and the kinds of music that pepole listen to?
+
+# Motivation
+We’ve all heard of the Jazz Age, when Jazz music gained nationwide popularity in the US. Music historians often say that this reflects the unprecedented economic boom and political development of the time. There is also the hippie movement in the 60s and 70s, when psychedelic rock became hugely popular following the outbreak of the Vietnam war, civil rights movement, and the spread of psychedelic drugs. However, we do not hear too much about what happened in the musical trends during the time of, for example, economic depression. Are musical historians making unwarranted claims? If it is true that there is such relation, in a time when we hear more and more about faltering economic conditions and increasing conflicts both internationally and internationally, would angrier or gloomier music gain more popularity? I wanted to study if the commonly made claim that the socio-economic state of a country affects the musical trends. 
+
+# Process
+This was the first individual data analysis research project that I worked on, and also it was the first time I worked with APIs and a large dataset. Initially I spent bulk of time trying to learn how to use APIs. Even after I figured it out, I was faced with another challenge which was trying to figure out how to join two different big dataset using song titles and artists that were often times registered differently in the two datasets. After working on it for few weeks, I took Yoav's advice to move on to analysis. This left me with limited time to explore and analyze the data, but I was able to observe some interesting results.
+
+## Attach Pacakges
+```{r}
+suppressPackageStartupMessages(require(Rspotify))
+suppressPackageStartupMessages(require(plyr))
+suppressPackageStartupMessages(require(dplyr))
+suppressPackageStartupMessages(require(psych))
+suppressPackageStartupMessages(require(devtools))
+suppressPackageStartupMessages(require(ggplot2))
+suppressPackageStartupMessages(require(openair))
+suppressPackageStartupMessages(require(data.table))
+suppressPackageStartupMessages(require(knitr))
+suppressPackageStartupMessages(require(lmtest))
+suppressPackageStartupMessages(require(psych))
+```
+
+## Import Data
+```{r}
+billboard <- read.csv("../Data/Raw/Hot100.csv")
+```
+
+## Data Cleaning
+I had to 
+```{r}
+billboard$WeekID <- as.Date(billboard$WeekID, format="%m/%d/%Y")
+billboard$Performer <- sub(pattern="Featuring", replacement="feat\\.", x=billboard$Performer)
+
+#To match Rspotify syntax
+colnames(billboard)[colnames(billboard)=="Song"] <- "title"
+colnames(billboard)[colnames(billboard)=="Performer"] <- "artist"
+
+#To match Spotify format
+##Remove "feat." in the artist column
+billboard$artist_spotify <- stringr::str_replace_all(billboard$artist, " feat.*", "")
+##Remove paranthesis in the front and back
+billboard[billboard$id==0,]$title <- stringr::str_replace_all(billboard[billboard$id==0,]$title, " \\((.*?)\\)", "")
+billboard[billboard$id==0,]$title <- stringr::str_replace_all(billboard[billboard$id==0,]$title, "\\((.*?)\\) ", "")
+
+#To use Rspotify
+billboard$title <- as.character(billboard$title)
+billboard$artist <- as.character(billboard$artist)
+billboard$artist_spotify <- as.character(billboard$artist_spotify)
+```
+
+## Requesting Spotify music features and joining it to Billboard data
+Below is the helper function that I created, and ran. This went through each and every rows of the Billboard data, which took hours to run. Looking back, I think I could have made it more efficient by making it skip rows that are identical to ones before and copy the music features.
+
+```{r}
+#get_spotify_features= function(track){
+#  songs <- try(searchTrack(track, keys),silent = T)
+#  if (class(songs)=="try-error"){
+#    return(rep(0,length(features_name)))
+#  }
+#  else{
+#  songs <- arrange(songs, desc(popularity))[1,]
+#  song_id=songs[,"id"][1]
+#  features=getFeatures(song_id, keys)
+#  return(features)
+#  }
+#}
+
+#for(i in 1:nrow(billboard)){
+#   billboard[i,11:26] <-  get_spotify_features(track = billboard$title[i])
+#}
+
+
+### Update the data for the failed IDs
+#failed_ids = which(billboard$id =="0")
+
+#for(i in failed_ids){
+#  billboard[i,17:32]=  get_spotify_features1(track = billboard$track[i],billboard$artist[i])
+#  print(i)
+#}
+```
+
+## Data Exploration
+
+### Load dataset and format date
+```{r}
+billboard <- read.csv("../Data/Clean/Billboard_spotify.csv")
+billboard$time <- as.Date(billboard$time)
+```
+
+### Extract data to visualize the trend in music features
+```{r}
+#total danceability
+total.dance<-aggregate(list(danceability = billboard$danceability),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.dance$time <- as.Date(total.dance$time)
+
+#total valence
+total.val<-aggregate(list(valence = billboard$valence),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.val$time <- as.Date(total.val$time)
+
+#total energy
+total.energy<-aggregate(list(energy = billboard$energy),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.energy$time <- as.Date(total.energy$time)
+
+#total loudness
+total.loud<-aggregate(list(loudness = billboard$loudness),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.loud$time <- as.Date(total.loud$time)
+
+#total tempo
+total.tempo<-aggregate(list(tempo = billboard$tempo),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.tempo$time <- as.Date(total.tempo$time)
+```
+
+### Distribution of music features
+```{r}
+hist(total.val$valence, main = "Histogram of Valence", xlab = "Valence")
+hist(total.dance$danceability, main = "Histogram of Danceability", xlab = "Danceability")
+hist(total.loud$loudness, main = "Histogram of Loudness", xlab = "Loudness")
+hist(total.tempo$tempo, main = "Histogram of tempo", xlab = "Tempo")
+hist(total.energy$energy, main = "Histogram of Energy", xlab = "Energy")
+```
+
+### Trends in music features
+```{r}
+#plot danceability
+ggplot(data=total.dance, aes(x=time, y=danceability)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.dance$danceability), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.dance$danceability),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Danceability, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot valence
+ggplot(data=total.val, aes(x=time, y=valence)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.val$valence), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.val$valence),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Valence, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot energy
+ggplot(data=total.energy, aes(x=time, y=energy)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.energy$energy), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.energy$energy),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Energy, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot loudness
+ggplot(data=total.loud, aes(x=time, y=loudness)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.loud$loudness), linetype = "dashed", color ="red") +
+  annotate(geom = "text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.loud$loudness),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Loudness, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot tempo
+ggplot(data=total.tempo, aes(x=time, y=tempo)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.tempo$tempo), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.tempo$tempo),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Tempo, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+### GDP growth rate
+```{r}
+GDP <- read.csv("../Data/Clean/GDP_cleaned.csv")
+GDP$time <- as.Date(GDP$time)
+
+ggplot(data=GDP, aes(x=time, y=gdp)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("GDP growth rate, 1961 ~ 2017") +
+  scale_x_date(date_labels = '%Y') +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(GDP$gdp),
+           vjust = -1, color = "red") +
+  geom_hline(yintercept = mean(GDP$gdp), linetype = "dashed", color ="red")
+```
+
+## Exploratory Analysis - Financial Crisis
+```{r}
+Fin.crisis <- subset(billboard,
+                     format.Date(time, "%Y")=="2000" |
+                     format.Date(time, "%Y")=="2001" |
+                     format.Date(time, "%Y")=="2002" |
+                     format.Date(time, "%Y")=="2003" |
+                     format.Date(time, "%Y")=="2004" |
+                     format.Date(time, "%Y")=="2005" |
+                     format.Date(time, "%Y")=="2006" |
+                     format.Date(time, "%Y")=="2007" |
+                     format.Date(time, "%Y")=="2008" | 
+                     format.Date(time, "%Y")=="2009" |
+                     format.Date(time, "%Y")=="2010" |
+                     format.Date(time, "%Y")=="2011" |
+                     format.Date(time, "%Y")=="2012" |
+                     format.Date(time, "%Y")=="2013" |
+                     format.Date(time, "%Y")=="2014")
+
+Fin.crisis$time <- as.Date(Fin.crisis$time)
+```
+
+### Danceability
+```{r}
+#create yearly average danceability
+fin.dance.av <- aggregate(list(danceability = Fin.crisis$danceability),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.dance.av$time <- as.Date(fin.dance.av$time)
+
+#plot
+ggplot(data=fin.dance.av, aes(x=time, y=danceability)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Danceability, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+### Valence
+```{r}
+#create yearly average valence
+fin.valence.av <- aggregate(list(valence = Fin.crisis$valence),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.valence.av$time <- as.Date(fin.valence.av$time)
+
+#plot
+ggplot(data=fin.valence.av, aes(x=time, y=valence)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Valence, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+### Energy
+```{r}
+#create yearly average energy
+fin.energy.av <- aggregate(list(energy = Fin.crisis$energy),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.energy.av$time <- as.Date(fin.energy.av$time)
+
+#plot
+ggplot(data=fin.energy.av, aes(x=time, y=energy)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Energy, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+### Loudness
+```{r}
+#create yearly average loudness
+fin.loud.av <- aggregate(list(loud = Fin.crisis$loud),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.loud.av$time <- as.Date(fin.loud.av$time)
+
+#plot
+ggplot(data=fin.loud.av, aes(x=time, y=loud)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Loudness, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+
+## Time Series Analysis
+
+### Danceability
+```{r}
+grangertest(GDP$gdp ~ total.dance$danceability, order=1)
+grangertest(GDP$gdp ~ total.dance$danceability, order=2)
+grangertest(GDP$gdp ~ total.dance$danceability, order=3)
+grangertest(GDP$gdp ~ total.dance$danceability, order=4)
+grangertest(GDP$gdp ~ total.dance$danceability, order=5)
+```
+
+```{r}
+grangertest(total.dance$danceability ~ GDP$gdp, order=1)
+grangertest(total.dance$danceability ~ GDP$gdp, order=2)
+grangertest(total.dance$danceability ~ GDP$gdp, order=3)
+grangertest(total.dance$danceability ~ GDP$gdp, order=4)
+grangertest(total.dance$danceability ~ GDP$gdp, order=5)
+```
+
+
+### Valence
+```{r}
+grangertest(GDP$gdp ~ total.val$valence, order=1)
+grangertest(GDP$gdp ~ total.val$valence, order=2)
+grangertest(GDP$gdp ~ total.val$valence, order=3)
+grangertest(GDP$gdp ~ total.val$valence, order=4)
+grangertest(GDP$gdp ~ total.val$valence, order=5)
+```
+
+```{r}
+grangertest(total.val$valence ~ GDP$gdp, order=1)
+grangertest(total.val$valence ~ GDP$gdp, order=2)
+grangertest(total.val$valence ~ GDP$gdp, order=3)
+grangertest(total.val$valence ~ GDP$gdp, order=4)
+grangertest(total.val$valence ~ GDP$gdp, order=5)
+```
+
+
+### Energy
+```{r}
+grangertest(GDP$gdp ~ total.energy$energy, order=1)
+grangertest(GDP$gdp ~ total.energy$energy, order=2)
+grangertest(GDP$gdp ~ total.energy$energy, order=3)
+grangertest(GDP$gdp ~ total.energy$energy, order=4)
+grangertest(GDP$gdp ~ total.energy$energy, order=5)
+```
+
+```{r}
+grangertest(total.energy$energy ~ GDP$gdp, order=1)
+grangertest(total.energy$energy ~ GDP$gdp, order=2)
+grangertest(total.energy$energy ~ GDP$gdp, order=3)
+grangertest(total.energy$energy ~ GDP$gdp, order=4)
+grangertest(total.energy$energy ~ GDP$gdp, order=5)
+```
+
+
+### Loudness
+```{r}
+grangertest(GDP$gdp ~ total.loud$loudness, order=1)
+grangertest(GDP$gdp ~ total.loud$loudness, order=2)
+grangertest(GDP$gdp ~ total.loud$loudness, order=3)
+grangertest(GDP$gdp ~ total.loud$loudness, order=4)
+grangertest(GDP$gdp ~ total.loud$loudness, order=5)
+```
+
+```{r}
+grangertest(total.loud$loudness ~ GDP$gdp, order=1)
+grangertest(total.loud$loudness ~ GDP$gdp, order=2)
+grangertest(total.loud$loudness ~ GDP$gdp, order=3)
+grangertest(total.loud$loudness ~ GDP$gdp, order=4)
+grangertest(total.loud$loudness ~ GDP$gdp, order=5)
+```
+
+
+### Tempo
+```{r}
+grangertest(GDP$gdp ~ total.tempo$tempo, order=1)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=2)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=3)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=4)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=5)
+```
+
+```{r}
+grangertest(total.tempo$tempo ~ GDP$gdp, order=1)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=2)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=3)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=4)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=5)
+```
+
+
+## Additional exploration
+What happened during the 1990s? We see a huge drop in all of the music features except for loudness. My theory is that it is because of the 'golden era' of Hip-Hop, which could explain why there music features such as valence and danceability decreased significantly. However, when looking at the artists who stayed the longest amount of time on the chart, there are not that many Hip-Hop artists. It could be that the top artists on the charts have always been pop artists regardless of what era we look at, but the majority of artists below the the usual pop artists were those rappers who are known for gritty and dark boom-baps.
+```{r}
+nineties <- subset(billboard,
+                   format.Date(WeekID, "%Y")=="1990" |
+                   format.Date(WeekID, "%Y")=="1991" |
+                   format.Date(WeekID, "%Y")=="1992" |
+                   format.Date(WeekID, "%Y")=="1993" |
+                   format.Date(WeekID, "%Y")=="1994" |
+                   format.Date(WeekID, "%Y")=="1995" |
+                   format.Date(WeekID, "%Y")=="1996" |
+                   format.Date(WeekID, "%Y")=="1997" |
+                   format.Date(WeekID, "%Y")=="1998" |
+                   format.Date(WeekID, "%Y")=="1999")
+```
+
+### Top Artists who stayed the longest on the Billboard chart in the 1990s
+```{r}
+artist90s <- table(nineties$artist)
+kable(head(sort(artist90s[artist90s!=0], decreasing = T), n = 50), format = "markdown",
+      caption = "Top Artists who stayed the longest on the Billboard chart in the 1990s")
+```
+
+### Top Songs which stayed the longest on the Billboard chart in the 1990s
+```{r}
+songs90s <- table(nineties$title)
+kable(head(sort(songs90s[songs90s!=0], decreasing = T), n = 50), format = "markdown",
+      caption = "Top Songss which stayed the longest on the Billboard chart in the 1990s")
+```
+
+## Takeaways
+1. From the Granger-causality test, we see that danceability Granger-causes GDP growth rate with lag 1 and 3, energy Granger-causes GDP growth rate with lag 1, 2, 3, 4, and 5, and loudness Granger-causes GDP growth rate with lag1, 4, and 5.
+
+2. Valence and Tempo do not Granger-causes GDP growth rate.
+
+3. GDP growth rate does not Granger-causes any of the music features, meaning if there is a latent factor, i.e. optimism, it is reflected in the music trend before it is reflected in the market.
+
+
+## Limitations
+1. The dataset was not comprehensive, as I was not able to request and join Spotify music features for some of the songs on the chart, although it was a small proportion of the full dataset.
+
+2. Was not able to identify the big drop in music feautres except for loudness in the 90s, which might have affected the accuracy of the analyses.
+
+3. I felt like the analyses were not comprehensive enough. Also, I was not entirely confident with choosing the number of lags (order), as it felt like p-hacking.
+
+## Next step
+1. Update the helper function and fix missing data issue
+
+2. [Supervised machine learning approach](https://www.ijcai.org/proceedings/2018/0282.pdf) for causal inference
+   (See Supervised machine learning appraoch under Required Skills and Analysis Plan of Readme.md)
+
+3. Latent factor analysis

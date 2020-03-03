@@ -1,0 +1,21 @@
+ # Progress 
+ ##
+ ## 3/17
+ I decided to use Billboard weekly hot 100 data instead of Billboard year-end hot 100 data, as I believed the weekly data might be more representative of what people in a given point of time listened to the most, and reflect changes in the mood of popular songs more accurately since throughout the time, there are certain kinds of music such as pop that are less sensitive to cyclical patterns in the economy.
+ 
+ 
+ ## 3/31
+ I have retrieved the Billboard Weekly Hot 100 Singles, and am trying to use title and artist of songs on the chart to search and request music features of each songs from Spotify API. This proved to be very challenging as there are many cases where title and artist are registered differently in Spotify and on the Billboard chart. I tried using the title to search from Spotify and arranging the result in descending popularity, and pulling out the first row of the result. This may not always be right, and I may have to check later. Another problem is dealing with regex. Many song titles in the Billboard dataset has special characters and additional information of each songs such as "(From "Back To The Future Part III")", and again song titles on Spotify did not have such additional chunk. There are more than 500 songs with special characters in the title, and I am trying to figure out how rewrite it to be able to query and retrieve the right information from the Spotify API.
+ 
+ Another problem, although this may be dealt with after I finish retrieving all of the data, is that the dataset is too big (> 100mb) and take hours to analyze it. I am debating whether I should use yearly data instead of weekly data. My rationale for using the weekly data was that I could use the number of weeks that a song was on the chart to weight each songs, and that the weekly data may capture the trend more accurately as there may be some songs that were on the Weekly Hot 100 list but fail to make it to the Year End Hot 100 list.
+ 
+ ## 4/7 
+ Made a helper function for matching billboard data to Spotify API. Since searchTrack function of Rspotify only takes on title of songs, it returns many songs with similar titles. So I made it to arrange the result in a descending order using popularity, and extract the first row. This worked because the songs on Billboard data are much more popular than songs with similar names but were not featured on the chart. Then I dropped unnecessary features such as key, mode, and time_signature. It would have been better if I have done this when initializing the features, but I didn’t and was afraid to run the function again since it took me about 6 or 7 hours to loop through each and every row of the dataset. The music features that I will be using are danceability, energy, loudness, valence and tempo as I believe these would be good proxies for optimism in the songs. However, there is a missing data issue. The helper function did not work for the songs that have special characters in their titles, which were about 500 unique songs in the list. I am not sure how to deal with this problem, other than hard coding in each and every cases in.
+ 
+ ## 4/14
+Following Yoav's recommendation, I decided to move on from data collecting, and work on exploratory analyses. My goal for the next week is, 1) plot each of the musical features and examine their patterns, 2) identify if there are any irregularities, 3) cross examine the pattern in musical features with the economic growth rate, 4) carry out preliminary analysis between the musical features and economic growth rate.
+ 
+ So far, I have plotted the musical features, and it seems that there are some irregularities. I am looking into the data to see if this is because of the missing data. If not, I can move on to the next part. It seems that there are little correlation between the pattern in musical features and economic growth rate, but this may be due to the economic growth rate being yearly-measured, where as musical features are weekly data. I will need to adjust the economic growth rate, e.g. by smoothing it.
+ 
+ ## 4/29
+ 1) Create a separate journal file, 2) save and upload figures from exploratory and preliminary analysis, 3) find other possible methods of analysis other than granger causality test

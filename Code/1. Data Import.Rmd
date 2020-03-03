@@ -1,0 +1,51 @@
+---
+title: "1. Data Import"
+author: "Jaejin Kim"
+date: "2/24/2019"
+output: pdf_document
+---
+
+# Import Billboard data
+```{r}
+billboard <- read.csv("../Data/Raw/Hot100.csv")
+# Weekly Hot 100 singles chart between 8/2/1958 and 12/28/2018 from https://data.world/kcmillersean/billboard-hot-100-1958-2017
+```
+
+# Data Cleaning
+```{r}
+billboard$WeekID <- as.Date(billboard$WeekID, format="%m/%d/%Y")
+billboard$Performer <- sub(pattern="Featuring", replacement="feat\\.", x=billboard$Performer)
+
+#To match Rspotify syntax
+colnames(billboard)[colnames(billboard)=="Song"] <- "title"
+colnames(billboard)[colnames(billboard)=="Performer"] <- "artist"
+
+#To match Spotify format
+##Remove "feat." in the artist column
+billboard$artist_spotify <- stringr::str_replace_all(billboard$artist, " feat.*", "")
+##Remove paranthesis in the front and back
+billboard[billboard$id==0,]$title <- stringr::str_replace_all(billboard[billboard$id==0,]$title, " \\((.*?)\\)", "")
+billboard[billboard$id==0,]$title <- stringr::str_replace_all(billboard[billboard$id==0,]$title, "\\((.*?)\\) ", "")
+
+#To use Rspotify
+billboard$title <- as.character(billboard$title)
+billboard$artist <- as.character(billboard$artist)
+billboard$artist_spotify <- as.character(billboard$artist_spotify)
+```
+
+# Save cleaned Billboard data
+```{r}
+write.csv(billboard, "../Data/Clean/Hot100.csv")
+```
+
+# Import and clean GDP growth rate
+```{r}
+GDP <- read.csv("../Data/Raw/GDP_growth_rate.csv")
+GDP$time <- as.Date(GDP$time, "%Y-%m-%d")
+```
+
+# Save cleaned GDP data
+```{r}
+write.csv(GDP, "../Data/Clean/gdp_cleaned.csv")
+```
+

@@ -1,0 +1,292 @@
+---
+title: "3. Preliminary Analysis"
+author: "Jaejin Kim"
+date: "4/1/2019"
+output: pdf_document
+---
+
+```{r}
+suppressPackageStartupMessages(require(dplyr))
+suppressPackageStartupMessages(require(psych))
+suppressPackageStartupMessages(require(devtools))
+suppressPackageStartupMessages(require(ggplot2))
+suppressPackageStartupMessages(require(openair))
+suppressPackageStartupMessages(require(data.table))
+suppressPackageStartupMessages(require(knitr))
+```
+
+# Load dataset and format date
+```{r}
+billboard <- read.csv("../Data/Clean/Billboard_spotify.csv")
+billboard$time <- as.Date(billboard$time)
+```
+
+# Extract data to visualize the trend in music features
+```{r}
+#total danceability
+total.dance<-aggregate(list(danceability = billboard$danceability),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.dance$time <- as.Date(total.dance$time)
+
+#total valence
+total.val<-aggregate(list(valence = billboard$valence),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.val$time <- as.Date(total.val$time)
+
+#total energy
+total.energy<-aggregate(list(energy = billboard$energy),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.energy$time <- as.Date(total.energy$time)
+
+#total loudness
+total.loud<-aggregate(list(loudness = billboard$loudness),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.loud$time <- as.Date(total.loud$time)
+
+#total tempo
+total.tempo<-aggregate(list(tempo = billboard$tempo),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.tempo$time <- as.Date(total.tempo$time)
+```
+
+# Distribution of music features
+```{r}
+hist(total.val$valence, main = "Histogram of Valence", xlab = "Valence")
+hist(total.dance$danceability, main = "Histogram of Danceability", xlab = "Danceability")
+hist(total.loud$loudness, main = "Histogram of Loudness", xlab = "Loudness")
+hist(total.tempo$tempo, main = "Histogram of tempo", xlab = "Tempo")
+hist(total.energy$energy, main = "Histogram of Energy", xlab = "Energy")
+```
+
+```{r}
+#plot danceability
+ggplot(data=total.dance, aes(x=time, y=danceability)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.dance$danceability), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.dance$danceability),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Danceability, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot valence
+ggplot(data=total.val, aes(x=time, y=valence)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.val$valence), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.val$valence),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Valence, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot energy
+ggplot(data=total.energy, aes(x=time, y=energy)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.energy$energy), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.energy$energy),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Energy, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot loudness
+ggplot(data=total.loud, aes(x=time, y=loudness)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.loud$loudness), linetype = "dashed", color ="red") +
+  annotate(geom = "text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.loud$loudness),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Loudness, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+```{r}
+#plot tempo
+ggplot(data=total.tempo, aes(x=time, y=tempo)) +
+  geom_line() +
+  geom_hline(yintercept = mean(total.tempo$tempo), linetype = "dashed", color ="red") +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(total.tempo$tempo),
+           vjust = -1, color = "red") +
+  geom_point() +
+  ggtitle("Tempo, 1958 ~ 2018") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+
+# Extract data from 2000 ~ 2014 to observe if there are any significant changes in music features during the financial crisis
+```{r}
+Fin.crisis <- subset(billboard,
+                     format.Date(time, "%Y")=="2000" |
+                     format.Date(time, "%Y")=="2001" |
+                     format.Date(time, "%Y")=="2002" |
+                     format.Date(time, "%Y")=="2003" |
+                     format.Date(time, "%Y")=="2004" |
+                     format.Date(time, "%Y")=="2005" |
+                     format.Date(time, "%Y")=="2006" |
+                     format.Date(time, "%Y")=="2007" |
+                     format.Date(time, "%Y")=="2008" | 
+                     format.Date(time, "%Y")=="2009" |
+                     format.Date(time, "%Y")=="2010" |
+                     format.Date(time, "%Y")=="2011" |
+                     format.Date(time, "%Y")=="2012" |
+                     format.Date(time, "%Y")=="2013" |
+                     format.Date(time, "%Y")=="2014")
+
+Fin.crisis$time <- as.Date(Fin.crisis$time)
+```
+
+# Danceability
+```{r}
+#create yearly average danceability
+fin.dance.av <- aggregate(list(danceability = Fin.crisis$danceability),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.dance.av$time <- as.Date(fin.dance.av$time)
+
+#plot
+ggplot(data=fin.dance.av, aes(x=time, y=danceability)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Danceability, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+# Valence
+```{r}
+#create yearly average valence
+fin.valence.av <- aggregate(list(valence = Fin.crisis$valence),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.valence.av$time <- as.Date(fin.valence.av$time)
+
+#plot
+ggplot(data=fin.valence.av, aes(x=time, y=valence)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Valence, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+# Energy
+```{r}
+#create yearly average energy
+fin.energy.av <- aggregate(list(energy = Fin.crisis$energy),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.energy.av$time <- as.Date(fin.energy.av$time)
+
+#plot
+ggplot(data=fin.energy.av, aes(x=time, y=energy)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Energy, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+#loudness
+```{r}
+#create yearly average loudness
+fin.loud.av <- aggregate(list(loud = Fin.crisis$loud),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.loud.av$time <- as.Date(fin.loud.av$time)
+
+#plot
+ggplot(data=fin.loud.av, aes(x=time, y=loud)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Loudness, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+#tempo
+```{r}
+#create yearly average tempo
+fin.tempo.av <- aggregate(list(tempo = Fin.crisis$tempo),
+                           list(time = cut(Fin.crisis$time, "1 year")),
+                           mean)
+fin.tempo.av$time <- as.Date(fin.tempo.av$time)
+
+#month
+ggplot(data=fin.tempo.av, aes(x=time, y=tempo)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("Tempo, 2000 ~ 2014") +
+  scale_x_date(date_labels = '%Y/%m')
+```
+
+
+
+# What happened during the 1990s?
+We see a huge drop in all of the music features except for loudness.
+```{r}
+nineties <- subset(billboard,
+                   format.Date(WeekID, "%Y")=="1990" |
+                   format.Date(WeekID, "%Y")=="1991" |
+                   format.Date(WeekID, "%Y")=="1992" |
+                   format.Date(WeekID, "%Y")=="1993" |
+                   format.Date(WeekID, "%Y")=="1994" |
+                   format.Date(WeekID, "%Y")=="1995" |
+                   format.Date(WeekID, "%Y")=="1996" |
+                   format.Date(WeekID, "%Y")=="1997" |
+                   format.Date(WeekID, "%Y")=="1998" |
+                   format.Date(WeekID, "%Y")=="1999")
+```
+
+```{r}
+artist90s <- table(nineties$artist)
+kable(head(sort(artist90s[artist90s!=0], decreasing = T), n = 100), format = "markdown")
+```
+
+```{r}
+songs90s <- table(nineties$title)
+kable(head(sort(songs90s[songs90s!=0], decreasing = T), n = 100), format = "markdown")
+```
+
+```{r}
+hist(nineties$valence, main = "Histogram of Valence during the 90s", xlab = "Valence")
+hist(nineties$danceability, main = "Histogram of Danceability during the 90s", xlab = "Danceability")
+hist(nineties$energy, main = "Histogram of Energy during the 90s", xlab = "Valence")
+hist(nineties$tempo, main = "Histogram of Tempo during the 90s", xlab = "Tempo")
+hist(nineties$loudness, main = "Histogram of Loudness during the 90s", xlab = "Loudness")
+```
+
+
+# GDP growth rate
+```{r}
+GDP <- read.csv("../Data/Clean/GDP_cleaned.csv")
+GDP$time <- as.Date(GDP$time)
+
+ggplot(data=GDP, aes(x=time, y=gdp)) +
+  geom_line() +
+  geom_point() +
+  ggtitle("GDP growth rate, 1961 ~ 2017") +
+  scale_x_date(date_labels = '%Y') +
+  annotate(geom="text", label = "mean",
+           x = as.Date("2020-01-01"), y = mean(GDP$gdp),
+           vjust = -1, color = "red") +
+  geom_hline(yintercept = mean(GDP$gdp), linetype = "dashed", color ="red")
+```
+
+
+
+
+
+
+

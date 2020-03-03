@@ -1,0 +1,124 @@
+---
+title: "Midterm Presentation"
+author: "Jaejin Kim"
+date: "3/25/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# My project
+My goal is to study if Socio-Economic Status of country affects the musical trend, for example, if people listen to 'happier' songs in the time of economic boom. I planned on collecting data through Spotify API for music features and Musixmatch API for lyrics. I am on the process of finalizing getting data from Spotify and am working on getting lyrics from Musixmatch API. As it was my first time working with API, there were couple of challenges.
+
+
+# Project Progress
+I was able to access the Billboard weekly top 100 chart data from August 2 1958 to December 28 2018 from https://data.world/kcmillersean/billboard-hot-100-1958-2017. But some of the columns such as artist and date were formulated in a way that is different from the way Spotify API and Musixmatch API were set, so I had to recode and rename some of the variables. 
+ Also, I have been reading papers and blog posts on sentiment analysis and methodology for analyzing music chart data.
+
+## To do by the end of April
+* Finalize extracting music features from Spotify
+* Create a happiness index using the music features
+* Visualize the trend in the index
+* Run preliminary analysis on the correlation between the index and GDP (Granger causality test?)
+
+
+## To do by the end of the semester
+* Depending on the result from preliminary analysis, further analyze the relationship on the happinness index and other indices
+* ~~(Get lyrics from Musixmatch API)
+* ~~(Run preliminary sentiment analysis on lyrics)~~
+
+# Project progress
+
+## Billboard data import
+```{r}
+billboard <- read.csv("../Data/Raw/Hot100.csv")
+```
+
+## Data cleaning
+```{r}
+billboard$WeekID <- as.Date(billboard$WeekID, format="%m/%d/%Y")
+billboard$Performer <- sub(pattern="Featuring", replacement="feat\\.", x=billboard$Performer)
+
+#To match Rspotify syntax
+colnames(billboard)[colnames(billboard)=="Song"] <- "title"
+colnames(billboard)[colnames(billboard)=="Performer"] <- "artist"
+
+#To match Spotify API format
+billboard$artist_spotify <- stringr::str_replace_all(billboard$artist, " feat.*", "")
+
+#To use Rspotify
+billboard$title <- as.character(billboard$title)
+billboard$artist <- as.character(billboard$artist)
+billboard$artist_spotify <- as.character(billboard$artist_spotify)
+
+#Create a sample with 1000 songs for reproducibility
+billboard = df[sample(nrow(df),2000,replace=F),]
+```
+
+## Getting music features from Spotify 
+```{r}
+require(Rspotify)
+require(dplyr)
+
+#Authorization
+keys <- Rspotify::spotifyOAuth(app_id = "EDP_Music_trend",
+                     client_id = '32e425fb99124ea79b6c5f327fa2928b',
+                     client_secret = '30136c965fd0445f82d831464335d6ea')
+#Name of Spotify features
+features_name=c("id","danceability","energy","key","loudness","mode","speechiness",
+                "acousticness","instrumentalness","liveness","valence","tempo",
+                "duration_ms","time_signature","uri","analysis_url")
+
+#Initiatilizing the features in the data
+billboard[,c("id","danceability","energy","key","loudness","mode","speechiness",
+         "acousticness","instrumentalness","liveness","valence","tempo",
+         "duration_ms","time_signature","uri","analysis_url")]=0
+
+#Helper Function for matching Billboard data to Spotify API
+get_spotify_features= function(track){
+  songs <- try(searchTrack(track, keys),silent = T)
+  if (class(songs)=="try-error"){
+    return(rep(0,length(features_name)))
+  }
+  else{
+  songs <- arrange(songs, desc(popularity))[1,]
+  song_id=songs[,"id"][1]
+  features=getFeatures(song_id, keys)
+  return(features)
+  }
+}
+
+#Get Spotify music features
+for(i in 1:nrow(billboard)){
+  billboard[i,11:26] <-  get_spotify_features(track = billboard$title[i])
+}
+
+#Drop unnecessary features (Use only "danceability", "energy", "loudness", "valence", "tempo")
+billboard <- subset(billboard, select = -c(key, mode, time_signature, acousticness, instrumentalness, liveness, duration_ms))
+
+billboard <- read.csv("../Data/Clean/Billboard_Spotify.csv")
+```
+* danceability: Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity.
+* energy: Energy represents a perceptual measure of intensity and activity based on dynamic range, perceived loudness, timbre, onset rate, and general entropy.
+* loudness: The overall loudness of a track in decibles (dB), averaged across the entire track.
+* valence: Valence describes the musical positiveness conveyed by a track.
+* tempo: the overall estimated tempo of a track in beats per minute.
+
+
+```{r}
+#Regex problems
+n_distinct(billboard[billboard$id==0,]$title)
+unique(billboard[billboard$id==0,]$title)
+
+
+#Remove paranthesis in the front and back
+billboard$title <- as.character(billboard$title)
+billboard[billboard$id==0,]$title <- stringr::str_replace_all(billboard[billboard$id==0,]$title, " \\((.*?)\\)", "")
+billboard[billboard$id==0,]$title <- stringr::str_replace_all(billboard[billboard$id==0,]$title, "\\((.*?)\\) ", "")
+billboard[billboard$id==0,]$title
+
+#Further deal with regex
+```

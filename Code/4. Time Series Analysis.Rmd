@@ -1,0 +1,151 @@
+---
+title: "4. Time Series Analysis"
+author: "Jaejin Kim"
+date: "4/15/2019"
+output: pdf_document
+---
+
+```{r}
+suppressPackageStartupMessages(require(lmtest))
+suppressPackageStartupMessages(require(psych))
+```
+
+# Data import
+```{r}
+billboard <- read.csv("../Data/Clean/Billboard_spotify.csv")
+billboard$time <- as.Date(billboard$WeekID, "%Y-%m-%d")
+
+GDP <- read.csv("../Data/Clean/GDP_cleaned.csv")
+GDP$time <- as.Date(GDP$time)
+```
+
+# Subset data
+```{r}
+#total danceability
+total.dance<-aggregate(list(danceability = billboard$danceability),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.dance$time <- as.Date(total.dance$time)
+
+#total valence
+total.val<-aggregate(list(valence = billboard$valence),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.val$time <- as.Date(total.val$time)
+
+#total energy
+total.energy<-aggregate(list(energy = billboard$energy),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.energy$time <- as.Date(total.energy$time)
+
+#total loudness
+total.loud<-aggregate(list(loudness = billboard$loudness),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.loud$time <- as.Date(total.loud$time)
+
+#total tempo
+total.tempo<-aggregate(list(tempo = billboard$tempo),
+                           list(time = cut(billboard$time, "1 year")),
+                           mean)
+total.tempo$time <- as.Date(total.tempo$time)
+```
+
+
+# Granger Causality Test
+## Danceability
+```{r}
+grangertest(GDP$gdp ~ total.dance$danceability, order=1)
+grangertest(GDP$gdp ~ total.dance$danceability, order=2)
+grangertest(GDP$gdp ~ total.dance$danceability, order=3)
+grangertest(GDP$gdp ~ total.dance$danceability, order=4)
+grangertest(GDP$gdp ~ total.dance$danceability, order=5)
+```
+
+```{r}
+grangertest(total.dance$danceability ~ GDP$gdp, order=1)
+grangertest(total.dance$danceability ~ GDP$gdp, order=2)
+grangertest(total.dance$danceability ~ GDP$gdp, order=3)
+grangertest(total.dance$danceability ~ GDP$gdp, order=4)
+grangertest(total.dance$danceability ~ GDP$gdp, order=5)
+```
+
+
+## Valence
+```{r}
+grangertest(GDP$gdp ~ total.val$valence, order=1)
+grangertest(GDP$gdp ~ total.val$valence, order=2)
+grangertest(GDP$gdp ~ total.val$valence, order=3)
+grangertest(GDP$gdp ~ total.val$valence, order=4)
+grangertest(GDP$gdp ~ total.val$valence, order=5)
+```
+
+```{r}
+grangertest(total.val$valence ~ GDP$gdp, order=1)
+grangertest(total.val$valence ~ GDP$gdp, order=2)
+grangertest(total.val$valence ~ GDP$gdp, order=3)
+grangertest(total.val$valence ~ GDP$gdp, order=4)
+grangertest(total.val$valence ~ GDP$gdp, order=5)
+```
+
+
+## Energy
+```{r}
+grangertest(GDP$gdp ~ total.energy$energy, order=1)
+grangertest(GDP$gdp ~ total.energy$energy, order=2)
+grangertest(GDP$gdp ~ total.energy$energy, order=3)
+grangertest(GDP$gdp ~ total.energy$energy, order=4)
+grangertest(GDP$gdp ~ total.energy$energy, order=5)
+```
+
+```{r}
+grangertest(total.energy$energy ~ GDP$gdp, order=1)
+grangertest(total.energy$energy ~ GDP$gdp, order=2)
+grangertest(total.energy$energy ~ GDP$gdp, order=3)
+grangertest(total.energy$energy ~ GDP$gdp, order=4)
+grangertest(total.energy$energy ~ GDP$gdp, order=5)
+```
+
+
+## Loudness
+```{r}
+grangertest(GDP$gdp ~ total.loud$loudness, order=1)
+grangertest(GDP$gdp ~ total.loud$loudness, order=2)
+grangertest(GDP$gdp ~ total.loud$loudness, order=3)
+grangertest(GDP$gdp ~ total.loud$loudness, order=4)
+grangertest(GDP$gdp ~ total.loud$loudness, order=5)
+```
+
+```{r}
+grangertest(total.loud$loudness ~ GDP$gdp, order=1)
+grangertest(total.loud$loudness ~ GDP$gdp, order=2)
+grangertest(total.loud$loudness ~ GDP$gdp, order=3)
+grangertest(total.loud$loudness ~ GDP$gdp, order=4)
+grangertest(total.loud$loudness ~ GDP$gdp, order=5)
+```
+
+
+## Tempo
+```{r}
+grangertest(GDP$gdp ~ total.tempo$tempo, order=1)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=2)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=3)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=4)
+grangertest(GDP$gdp ~ total.tempo$tempo, order=5)
+```
+
+```{r}
+grangertest(total.tempo$tempo ~ GDP$gdp, order=1)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=2)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=3)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=4)
+grangertest(total.tempo$tempo ~ GDP$gdp, order=5)
+```
+
+
+
+
+
+
+
